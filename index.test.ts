@@ -17,7 +17,6 @@ import {
 	parseCodexUsageResponse,
 	pickBestAccount,
 } from "./index";
-import { setCloseCodexWebSocketSessionsForTest } from "./stream-wrapper";
 
 let previousAgentDir: string | undefined;
 let agentDir: string;
@@ -35,7 +34,6 @@ afterEach(() => {
 		process.env.PI_CODING_AGENT_DIR = previousAgentDir;
 	}
 	rmSync(agentDir, { recursive: true, force: true });
-	setCloseCodexWebSocketSessionsForTest(undefined);
 });
 
 describe("isQuotaErrorMessage", () => {
@@ -547,13 +545,21 @@ describe("manual account selection", () => {
 		expect(headerEmail).toBe("auto@example.com");
 	});
 
-	it("passes the selected token and diagnostic header without mutating caller inputs", async () => {
+	it.each([
+		undefined,
+		"sse",
+		"auto",
+		"websocket",
+		"websocket-cached",
+	] as const)("preserves transport %s and isolates credentials without mutating inputs", async (transport) => {
 		const account = makeAccount("auto@example.com");
 		const captured: Array<{
 			headers?: Record<string, string>;
 			apiKey?: string;
 			customOption?: string;
 			transport?: string;
+			cacheRetention?: string;
+			sessionId?: string;
 		}> = [];
 
 		const accountManager = {
@@ -575,6 +581,8 @@ describe("manual account selection", () => {
 					apiKey?: string;
 					customOption?: string;
 					transport?: string;
+					cacheRetention?: string;
+					sessionId?: string;
 				},
 			) => {
 				captured.push({
@@ -582,6 +590,8 @@ describe("manual account selection", () => {
 					apiKey: options?.apiKey,
 					customOption: options?.customOption,
 					transport: options?.transport,
+					cacheRetention: options?.cacheRetention,
+					sessionId: options?.sessionId,
 				});
 				async function* inner() {
 					yield { type: "done" };
@@ -599,6 +609,9 @@ describe("manual account selection", () => {
 		const options = {
 			apiKey: "original-token",
 			customOption: "preserved",
+			transport,
+			cacheRetention: "long",
+			sessionId: "caller-session",
 		} as StreamOptions & { customOption: string };
 
 		const stream = createStreamWrapper(
@@ -618,126 +631,19 @@ describe("manual account selection", () => {
 				},
 				apiKey: "selected-token",
 				customOption: "preserved",
-				transport: "sse",
+				transport,
+				cacheRetention: "none",
+				sessionId: "caller-session",
 			},
 		]);
 		expect(model.headers).toEqual({ Existing: "yes" });
 		expect(options.apiKey).toBe("original-token");
-	});
-
-	it("closes cached Codex session before starting a managed stream", async () => {
-		const closeCachedWebSockets = vi.fn();
-		setCloseCodexWebSocketSessionsForTest(closeCachedWebSockets);
-		const account = makeAccount("pro@example.com");
-		const calls: string[] = [];
-
-		const accountManager = {
-			waitUntilReady: async () => {},
-			syncImportedOpenAICodexAuth: async () => false,
-			getAvailableManualAccount: () => undefined,
-			hasManualAccount: () => false,
-			clearManualAccount: () => {},
-			activateBestAccount: async () => account,
-			ensureValidToken: async () => "pro-token",
-			setRuntimeActiveAccount: (email: string) => {
-				calls.push(`runtime:${email}`);
-			},
-			handleQuotaExceeded: async () => {},
-		} as unknown as AccountManager;
-
-		const baseProvider = {
-			streamSimple: () => {
-				calls.push("stream");
-				async function* inner() {
-					yield { type: "done" };
-				}
-				return inner() as unknown as AsyncIterable<unknown>;
-			},
-		};
-
-		closeCachedWebSockets.mockImplementation(async () => {
-			calls.push("close");
-		});
-
-		const stream = createStreamWrapper(
-			accountManager,
-			baseProvider as unknown as BaseProvider,
-		)(
-			{
-				id: "test",
-				provider: "openai-codex",
-				api: "openai-codex-responses",
-			} as StreamModel,
-			{} as StreamContext,
-			{ sessionId: "managed-session" } as StreamOptions,
-		);
-
-		for await (const _event of stream) {
-			// drain
-		}
-
-		expect(closeCachedWebSockets).toHaveBeenCalledWith("managed-session");
-		expect(calls).toEqual(["runtime:pro@example.com", "close", "stream"]);
-	});
-
-	it("continues streaming when cached Codex session cleanup fails", async () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		const closeCachedWebSockets = vi.fn(async () => {
-			throw new Error("socket already closing");
-		});
-		setCloseCodexWebSocketSessionsForTest(closeCachedWebSockets);
-		const account = makeAccount("pro@example.com");
-
-		const accountManager = {
-			waitUntilReady: async () => {},
-			syncImportedOpenAICodexAuth: async () => false,
-			getAvailableManualAccount: () => undefined,
-			hasManualAccount: () => false,
-			clearManualAccount: () => {},
-			activateBestAccount: async () => account,
-			ensureValidToken: async () => "pro-token",
-			setRuntimeActiveAccount: () => {},
-			handleQuotaExceeded: async () => {},
-		} as unknown as AccountManager;
-
-		const baseProvider = {
-			streamSimple: () => {
-				async function* inner() {
-					yield { type: "done" };
-				}
-				return inner() as unknown as AsyncIterable<unknown>;
-			},
-		};
-
-		const stream = createStreamWrapper(
-			accountManager,
-			baseProvider as unknown as BaseProvider,
-		)(
-			{
-				id: "test",
-				provider: "openai-codex",
-				api: "openai-codex-responses",
-			} as StreamModel,
-			{} as StreamContext,
-			{ sessionId: "managed-session" } as StreamOptions,
-		);
-
-		const events = [];
-		for await (const event of stream) {
-			events.push(event);
-		}
-
-		expect(events).toEqual([expect.objectContaining({ type: "done" })]);
-		expect(closeCachedWebSockets).toHaveBeenCalledWith("managed-session");
-		expect(warn).toHaveBeenCalledWith(
-			expect.stringContaining("failed to close cached Codex WebSocket session"),
-		);
-		warn.mockRestore();
+		expect(options.transport).toBe(transport);
+		expect(options.cacheRetention).toBe("long");
+		expect(options.sessionId).toBe("caller-session");
 	});
 
 	it("clears manual on quota and retries with auto account", async () => {
-		const closeCachedWebSockets = vi.fn();
-		setCloseCodexWebSocketSessionsForTest(closeCachedWebSockets);
 		const manual = makeAccount("manual@example.com");
 		const auto = makeAccount("auto@example.com");
 		let cleared = false;
@@ -806,13 +712,9 @@ describe("manual account selection", () => {
 		expect(headers[1]).toBe("auto@example.com");
 		expect(runtimeAccounts).toEqual(["manual@example.com", "auto@example.com"]);
 		expect(activateCount).toBe(1);
-		expect(closeCachedWebSockets).toHaveBeenCalledWith("quota-session");
-		expect(closeCachedWebSockets).toHaveBeenCalledTimes(2);
 	});
 
 	it("rotates when quota failure is thrown during initial stream", async () => {
-		const closeCachedWebSockets = vi.fn();
-		setCloseCodexWebSocketSessionsForTest(closeCachedWebSockets);
 		const first = makeAccount("first@example.com");
 		const second = makeAccount("second@example.com");
 		let activateCount = 0;
@@ -876,8 +778,6 @@ describe("manual account selection", () => {
 		expect(exhausted).toEqual(["first@example.com"]);
 		expect(activateCount).toBe(2);
 		expect(events.some((event) => event.type === "error")).toBe(false);
-		expect(closeCachedWebSockets).toHaveBeenCalledWith("thrown-quota-session");
-		expect(closeCachedWebSockets).toHaveBeenCalledTimes(2);
 	});
 
 	it("rotates when quota metadata refresh also hits quota", async () => {
@@ -948,8 +848,6 @@ describe("manual account selection", () => {
 	});
 
 	it("rotates when a synthetic start precedes a quota error", async () => {
-		const closeCachedWebSockets = vi.fn();
-		setCloseCodexWebSocketSessionsForTest(closeCachedWebSockets);
 		const first = makeAccount("first@example.com");
 		const second = makeAccount("second@example.com");
 		let activateCount = 0;
@@ -1020,10 +918,6 @@ describe("manual account selection", () => {
 		expect(activateCount).toBe(2);
 		expect(events.some((event) => event.type === "error")).toBe(false);
 		expect(events.map((event) => event.type)).toEqual(["start", "done"]);
-		expect(closeCachedWebSockets).toHaveBeenCalledWith(
-			"buffered-start-quota-session",
-		);
-		expect(closeCachedWebSockets).toHaveBeenCalledTimes(2);
 	});
 
 	it.each([

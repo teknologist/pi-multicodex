@@ -96,6 +96,12 @@ These per-account widgets show managed MultiCodex accounts only, ignore the ephe
 - **Quota cooldown.** When an account is exhausted, it stays on cooldown until its next known reset time (or 1 hour if the reset time is unknown).
 - **Provider utilities.** MultiCodex includes its provider mirroring, stream primitives, and `~/.pi/agent/*` path helpers so it uses the same Pi package namespace as the host. MultiCodex also owns account storage, token policy, footer behavior, and command UX.
 
+## Transport on Pi 1.1.0
+
+MultiCodex preserves your requested transport, including `auto` and explicit `sse`. Each attempt uses `cacheRetention: "none"` so it authenticates independently, even when two credentials share one workspace.
+
+This disables WebSocket connection reuse, cached-response continuation, and the explicit session prompt-cache key. It avoids forced SSE and does not require a host cleanup-registry bridge. Pi can still fall back to SSE when a WebSocket request fails before output.
+
 ## Local development
 
 This repo uses `mise` for tool versions and `pnpm` for dependency management.

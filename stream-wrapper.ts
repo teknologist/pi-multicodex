@@ -17,32 +17,6 @@ import {
 } from "./stream-utils";
 
 const MAX_ROTATION_RETRIES = 5;
-type CloseCodexWebSocketSessions = (sessionId?: string) => void | Promise<void>;
-
-let closeCodexWebSocketSessionsForTest: CloseCodexWebSocketSessions | undefined;
-let warnedWebSocketCleanupFailure = false;
-
-export function setCloseCodexWebSocketSessionsForTest(
-	handler: CloseCodexWebSocketSessions | undefined,
-): void {
-	closeCodexWebSocketSessionsForTest = handler;
-}
-
-async function closeCachedCodexWebSocketSession(
-	sessionId: string | undefined,
-): Promise<void> {
-	if (!sessionId || !closeCodexWebSocketSessionsForTest) return;
-	try {
-		await closeCodexWebSocketSessionsForTest(sessionId);
-	} catch (error) {
-		if (warnedWebSocketCleanupFailure) return;
-		warnedWebSocketCleanupFailure = true;
-		console.warn(
-			`Multicodex: failed to close cached Codex WebSocket session: ${normalizeUnknownError(error)}`,
-		);
-	}
-}
-
 type ApiProviderRef = {
 	streamSimple: (
 		model: Model<Api>,
@@ -113,7 +87,6 @@ export function createStreamWrapper(
 						throw error;
 					}
 					accountManager.setRuntimeActiveAccount?.(account.email);
-					await closeCachedCodexWebSocketSession(options?.sessionId);
 					const abortController = createLinkedAbortController(options?.signal);
 
 					const internalModel: Model<"openai-codex-responses"> = {
@@ -135,8 +108,9 @@ export function createStreamWrapper(
 							...options,
 							apiKey: token,
 							signal: abortController.signal,
-							// Cached WebSockets can retain the prior account for a session.
-							transport: "sse",
+							// Each attempt authenticates independently, including shared-workspace accounts.
+							// Keep the requested transport but never reuse another credential's socket.
+							cacheRetention: "none",
 						},
 					);
 

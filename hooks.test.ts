@@ -2,37 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { handleNewSessionSwitch, handleSessionStart } from "./hooks";
 
 describe("handleSessionStart", () => {
-	it("does nothing when no accounts exist", () => {
-		const loadPiAuth = vi.fn();
-		const refreshUsageForAccount = vi.fn();
-		const getAvailableManualAccount = vi.fn();
-		const hasManualAccount = vi.fn();
-		const clearManualAccount = vi.fn();
-		const activateBestAccount = vi.fn();
-		const beginInitialization = vi.fn();
-		const markReady = vi.fn();
-
-		handleSessionStart({
-			getAccounts: () => [],
-			loadPiAuth,
-			refreshUsageForAccount,
-			getAvailableManualAccount,
-			hasManualAccount,
-			clearManualAccount,
-			activateBestAccount,
-			beginInitialization,
-			markReady,
-		} as never);
-
-		expect(loadPiAuth).not.toHaveBeenCalled();
-		expect(refreshUsageForAccount).not.toHaveBeenCalled();
-		expect(getAvailableManualAccount).not.toHaveBeenCalled();
-		expect(hasManualAccount).not.toHaveBeenCalled();
-		expect(clearManualAccount).not.toHaveBeenCalled();
-		expect(activateBestAccount).not.toHaveBeenCalled();
-	});
-
-	it("refreshes and activates when accounts exist and no manual account is available", async () => {
+	it.each([
+		{ accounts: [] },
+		{ accounts: [{ email: "a@example.com" }] },
+	])("imports auth and activates without a manual account (stored accounts: %j)", async ({
+		accounts,
+	}) => {
 		const loadPiAuth = vi.fn().mockResolvedValue(undefined);
 		const refreshUsageForAccount = vi.fn().mockResolvedValue(undefined);
 		const getAvailableManualAccount = vi.fn().mockReturnValue(undefined);
@@ -44,7 +19,7 @@ describe("handleSessionStart", () => {
 		const markReady = vi.fn();
 
 		handleSessionStart({
-			getAccounts: () => [{ email: "a@example.com" }],
+			getAccounts: () => accounts,
 			loadPiAuth,
 			isPiAuthAccount: () => false,
 			refreshUsageForAccount,

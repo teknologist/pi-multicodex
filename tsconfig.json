@@ -27,6 +27,7 @@
 		"selection.ts",
 		"storage.ts",
 		"stream-wrapper.ts",
+		"transport.test.ts",
 		"usage-client.ts",
 		"usage.ts",
 		"vitest.config.ts"

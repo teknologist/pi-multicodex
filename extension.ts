@@ -43,11 +43,12 @@ export default function multicodexExtension(pi: ExtensionAPI) {
 		lastContext = ctx;
 		installMulticodexProviderWrapper(pi, accountManager);
 		accountManager.resetSessionWarnings();
-		handleSessionStart(accountManager, (msg) =>
-			notifyWarning(lastContext, msg),
-		);
 		if (event.reason === "new") {
 			handleNewSessionSwitch(accountManager, (msg) =>
+				notifyWarning(lastContext, msg),
+			);
+		} else {
+			handleSessionStart(accountManager, (msg) =>
 				notifyWarning(lastContext, msg),
 			);
 		}
