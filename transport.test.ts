@@ -1,3 +1,4 @@
+import { zstdDecompressSync } from "node:zlib";
 import type { Model } from "@earendil-works/pi-ai";
 import {
 	closeOpenAICodexWebSocketSessions,
@@ -215,4 +216,58 @@ it("closes an active request socket on cancellation without another account atte
 	expect(sockets).toHaveLength(1);
 	expect(sockets[0].readyState).toBe(3);
 	expect(globalThis.fetch).not.toHaveBeenCalled();
+});
+
+function sseResponse() {
+	const body = `data: ${JSON.stringify({
+		type: "response.completed",
+		response: {
+			id: "response-sse",
+			status: "completed",
+			usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+		},
+	})}\n\n`;
+	return new Response(body, {
+		status: 200,
+		headers: { "content-type": "text/event-stream" },
+	});
+}
+
+// Pi zstd-compresses SSE request bodies.
+function requestBody(call: unknown[]): Record<string, unknown> {
+	const { body } = call[1] as { body: string | Uint8Array };
+	const text =
+		typeof body === "string" ? body : zstdDecompressSync(body).toString();
+	return JSON.parse(text);
+}
+
+// Without a prompt_cache_key Codex cache hits collapsed from ~92% to ~20%; SSE
+// has no socket to share, so a per-account key keeps the cache without sharing it.
+it("keeps a prompt cache key on SSE that is scoped to the selected account", async () => {
+	const fetchMock = vi.fn(async () => sseResponse());
+	vi.stubGlobal("fetch", fetchMock);
+	const target = fixture();
+	const keys: string[] = [];
+	for (const email of ["first@example.test", "second@example.test"]) {
+		target.select(account(email));
+		const result = await target
+			.stream(model, context, { sessionId: "sse-fixture", transport: "sse" })
+			.result();
+		expect(result.stopReason).toBe("stop");
+		const key = String(
+			requestBody(fetchMock.mock.calls.at(-1) ?? []).prompt_cache_key,
+		);
+		expect(key).toContain("sse-fixture");
+		expect(key).not.toContain(email);
+		keys.push(key);
+	}
+	expect(keys[0]).not.toBe(keys[1]);
+	target.select(account("first@example.test"));
+	await target
+		.stream(model, context, { sessionId: "sse-fixture", transport: "sse" })
+		.result();
+	expect(requestBody(fetchMock.mock.calls.at(-1) ?? []).prompt_cache_key).toBe(
+		keys[0],
+	);
+	expect(sockets).toHaveLength(0);
 });

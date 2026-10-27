@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
 	type Api,
 	type AssistantMessageEvent,
@@ -24,6 +25,18 @@ type ApiProviderRef = {
 		options?: SimpleStreamOptions,
 	) => AssistantMessageEventStream;
 };
+
+// Pi derives the Codex prompt-cache key from sessionId and drops it when
+// cacheRetention is "none". Over SSE there is no socket to leak between
+// credentials, so a per-account key keeps the cache without sharing it.
+function accountScopedSessionId(
+	sessionId: string | undefined,
+	email: string,
+): string | undefined {
+	if (!sessionId) return undefined;
+	const tag = createHash("sha256").update(email).digest("hex").slice(0, 8);
+	return `${tag}-${sessionId}`;
+}
 
 function isRetrySafePreOutputEvent(event: AssistantMessageEvent): boolean {
 	return (
@@ -110,7 +123,14 @@ export function createStreamWrapper(
 							signal: abortController.signal,
 							// Each attempt authenticates independently, including shared-workspace accounts.
 							// Keep the requested transport but never reuse another credential's socket.
-							cacheRetention: "none",
+							...(options?.transport === "sse"
+								? {
+										sessionId: accountScopedSessionId(
+											options.sessionId,
+											account.email,
+										),
+									}
+								: { cacheRetention: "none" as const }),
 						},
 					);
 

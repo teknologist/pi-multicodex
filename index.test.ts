@@ -632,8 +632,13 @@ describe("manual account selection", () => {
 				apiKey: "selected-token",
 				customOption: "preserved",
 				transport,
-				cacheRetention: "none",
-				sessionId: "caller-session",
+				// SSE keeps the caller's retention and an account-scoped cache key;
+				// socket transports opt out so no credential reuses another's socket.
+				cacheRetention: transport === "sse" ? "long" : "none",
+				sessionId:
+					transport === "sse"
+						? expect.stringMatching(/^[0-9a-f]{8}-caller-session$/)
+						: "caller-session",
 			},
 		]);
 		expect(model.headers).toEqual({ Existing: "yes" });
