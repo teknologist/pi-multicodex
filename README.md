@@ -1,4 +1,4 @@
-# @victor-software-house/pi-multicodex
+# @teknologist/pi-multicodex
 
 ![MultiCodex main panel](./assets/multicodex-main.png)
 
@@ -8,10 +8,10 @@ You add your Codex accounts once. After that, MultiCodex transparently picks the
 
 ## Getting started
 
-Install from npm:
+Install from GitHub:
 
 ```bash
-pi install npm:@victor-software-house/pi-multicodex
+pi install git:github.com/teknologist/pi-multicodex
 ```
 
 Restart pi. That is all you need — MultiCodex takes over the normal `openai-codex` provider path and auto-imports any Codex auth you have already set up in pi.
@@ -89,12 +89,12 @@ These per-account widgets show managed MultiCodex accounts only, ignore the ephe
 
 ## What it does under the hood
 
-- **Provider override.** MultiCodex registers itself as the `openai-codex` provider. You do not need to select a different provider or change your model — it works with whatever Codex model you already use.
+- **Provider override.** MultiCodex overrides authentication and streaming for `openai-codex`. Pi retains its live model catalog, model overrides, and endpoints. You do not need to select a different provider or change your model.
 - **Auth import.** When pi has stored Codex OAuth credentials, MultiCodex imports them automatically and merges duplicate credentials into existing managed accounts when possible.
 - **Token refresh.** OAuth tokens are refreshed before expiry so requests do not fail due to stale credentials. You can also force a health refresh with `/multicodex refresh` or re-authenticate explicitly with `/multicodex reauth`.
 - **Usage tracking.** Usage data is cached for 5 minutes per account in `~/.pi/agent/codex-usage-cache.json`, so all running pi profiles reuse the same snapshot instead of making duplicate Codex API requests. The cache contains usage data only, never credentials.
 - **Quota cooldown.** When an account is exhausted, it stays on cooldown until its next known reset time (or 1 hour if the reset time is unknown).
-- **Provider utilities.** MultiCodex includes its provider mirroring, stream primitives, and `~/.pi/agent/*` path helpers so it uses the same Pi package namespace as the host. MultiCodex also owns account storage, token policy, footer behavior, and command UX.
+- **Provider utilities.** MultiCodex includes its stream primitives and `~/.pi/agent/*` path helpers so it uses the same Pi package namespace as the host. MultiCodex also owns account storage, token policy, footer behavior, and command UX.
 
 ## Transport on Pi 1.1.0
 
@@ -133,7 +133,7 @@ No data is sent anywhere except to the Codex API endpoints for auth refresh and 
 
 ## Release process
 
-Releases are automated. Push a conventional commit to `main` and GitHub Actions handles versioning, changelog, npm publishing (via trusted publishing), and GitHub releases.
+The GitHub Release workflow is disabled. Install from GitHub as shown in Getting started; pushes to `main` run CI but do not publish to npm.
 
 Local push protection via `lefthook` runs the same checks as CI before every push.
 
@@ -157,7 +157,7 @@ This fork diverged significantly:
 - **Non-interactive mode.** All inspection and recovery subcommands (`show`, `verify`, `path`, `reset`, `help`) work without a UI panel.
 - **Auth import.** Automatically imports pi's stored `openai-codex` credentials when they change, so existing pi logins work without re-entering them.
 - **Token refresh.** Proactively refreshes OAuth tokens before expiry instead of failing on stale credentials.
-- **Automated releases.** semantic-release with npm trusted publishing, commitlint, lefthook pre-push checks, and CI validation on every push.
+- **Release tooling.** semantic-release configuration, commitlint, lefthook pre-push checks, and CI validation. Automatic publishing is disabled.
 
 ### [calesennett/pi-codex-usage](https://github.com/calesennett/pi-codex-usage)
 

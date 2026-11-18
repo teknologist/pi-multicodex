@@ -1,5 +1,5 @@
 {
-	"name": "@victor-software-house/pi-multicodex",
+	"name": "@teknologist/pi-multicodex",
 	"version": "2.9.11",
 	"description": "Codex account rotation extension for pi",
 	"license": "MIT",
@@ -18,15 +18,15 @@
 		"extensions": [
 			"./index.ts"
 		],
-		"image": "https://raw.githubusercontent.com/victor-software-house/pi-multicodex/main/assets/multicodex-main.png"
+		"image": "https://raw.githubusercontent.com/teknologist/pi-multicodex/main/assets/multicodex-main.png"
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/victor-software-house/pi-multicodex.git"
+		"url": "git+https://github.com/teknologist/pi-multicodex.git"
 	},
-	"homepage": "https://github.com/victor-software-house/pi-multicodex#readme",
+	"homepage": "https://github.com/teknologist/pi-multicodex#readme",
 	"bugs": {
-		"url": "https://github.com/victor-software-house/pi-multicodex/issues"
+		"url": "https://github.com/teknologist/pi-multicodex/issues"
 	},
 	"author": "Victor",
 	"files": [

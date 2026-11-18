@@ -1,8 +1,8 @@
-# @victor-software-house/pi-multicodex roadmap
+# @teknologist/pi-multicodex roadmap
 
 ## Product focus
 
-`@victor-software-house/pi-multicodex` is a pi extension focused on rotating multiple ChatGPT Codex OAuth accounts for the `openai-codex-responses` API.
+`@teknologist/pi-multicodex` is a pi extension focused on rotating multiple ChatGPT Codex OAuth accounts for the `openai-codex-responses` API.
 
 The roadmap is centered on:
 
@@ -32,7 +32,7 @@ The current shipped behavior is:
 
 ## Operating principles
 
-- Keep npmjs as the canonical public distribution channel.
+- Use GitHub as the distribution channel; automatic npm publishing is disabled.
 - Keep the package npm-installable for pi users.
 - Use pnpm for local development.
 - Keep releases small, validated, and repeatable.
@@ -46,10 +46,10 @@ The current shipped behavior is:
 
 ## Decisions already locked in
 
-- **Package name:** `@victor-software-house/pi-multicodex`
+- **Package name:** `@teknologist/pi-multicodex`
 - **Scope:** Codex only
 - **Local package manager:** pnpm
-- **Primary release path:** npmjs with trusted publishing
+- **Primary install path:** GitHub; automatic npm publishing is disabled
 - **Storage file:** `~/.pi/agent/codex-accounts.json`
 - **Provider strategy:** own the normal `openai-codex` path directly
 - **Auth strategy:** auto-import pi's stored `openai-codex` auth when it is new or changed
@@ -332,12 +332,12 @@ Target release flow:
 
 1. Write Conventional Commits.
 2. Merge to `main`.
-3. Let GitHub Actions run CI and `semantic-release` from `.github/workflows/publish.yml`.
-4. Let npm trusted publishing handle `npm publish --provenance` without long-lived npm tokens.
+3. Let GitHub Actions run CI. The Release workflow remains disabled.
+4. Install from `git:github.com/teknologist/pi-multicodex`.
 
 ## Final release validation
 
-Before treating the new release flow as fully settled, explicitly validate the full path:
+The checklist below is inherited from the original npm release process. It does not verify publishing for this fork; automatic publishing is disabled.
 
 - [x] Run `pnpm check`
 - [x] Run `npm pack --dry-run`

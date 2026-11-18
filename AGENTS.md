@@ -10,7 +10,7 @@ The current codebase is organized around these responsibilities:
 
 - `provider.ts`
   - overrides the normal `openai-codex` provider path
-  - mirrors Codex models through `@victor-software-house/pi-provider-utils/providers`
+  - leaves Pi's live model catalog and endpoints unchanged; never register a replacement model list
   - installs the managed stream wrapper
 - `stream-wrapper.ts`
   - account selection, retry, and quota-rotation path during streaming
@@ -130,16 +130,13 @@ npm pack --dry-run
 
 ## Release workflow
 
-- Use `semantic-release` with npm trusted publishing.
-- Normal releases happen from merges to `main` through `.github/workflows/publish.yml`.
+- The Release workflow (`publish.yml`) is disabled in GitHub. Do not enable it without approval.
+- The existing release workflow and `semantic-release` configuration remain in the repository but do not run automatically.
 - Enforce Conventional Commits with commitlint locally and in CI.
 - Use `lefthook` for the local `commit-msg` hook.
 - Use `pnpm release:dry` for local release verification when needed.
 - Do not use local `npm publish` for routine releases.
-- Keep the npm trusted publisher mapping aligned with:
-  - package: `@victor-software-house/pi-multicodex`
-  - repository: `victor-software-house/pi-multicodex`
-  - workflow file: `.github/workflows/publish.yml`
+- Install the extension from `git:github.com/teknologist/pi-multicodex`.
 
 ## Commit workflow
 

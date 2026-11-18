@@ -10,7 +10,7 @@ import { getAgentPath } from "./agent-paths";
 const CURRENT_VERSION = 1;
 
 const SCHEMA_URL =
-	"https://raw.githubusercontent.com/victor-software-house/pi-multicodex/main/schemas/codex-accounts.schema.json";
+	"https://raw.githubusercontent.com/teknologist/pi-multicodex/main/schemas/codex-accounts.schema.json";
 
 const AccountSchema = z
 	.object({
