@@ -372,7 +372,6 @@ export function buildMulticodexProviderConfig(
 	accountManager: AccountManager,
 	baseProvider: ApiProviderRef = getDelegateProvider(),
 ) {
-	const mirror = getOpenAICodexMirror();
 	if (!baseProvider) {
 		throw new Error(
 			"OpenAI Codex provider not available. Please update pi to include openai-codex support.",
@@ -380,11 +379,10 @@ export function buildMulticodexProviderConfig(
 	}
 
 	const config = {
-		baseUrl: mirror.baseUrl,
+		// Leave models and endpoints to Pi; a model list replaces its live catalog.
 		apiKey: getActiveApiKey(accountManager),
 		api: CODEX_RESPONSES_API,
 		streamSimple: createStreamWrapper(accountManager, baseProvider),
-		models: mirror.models,
 	};
 
 	Object.defineProperty(config, MULTICODEX_PROVIDER_MARKER, {
