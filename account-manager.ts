@@ -3,6 +3,7 @@ import { loadImportedOpenAICodexAuth } from "./auth";
 import { refreshOAuthToken } from "./oauth-client";
 import { extractQuotaResetAt } from "./quota";
 import { isAccountAvailable, pickBestAccount } from "./selection";
+import type { SessionRotation } from "./session-rotation";
 import {
 	type Account,
 	loadStorage,
@@ -52,6 +53,8 @@ export class AccountManager {
 	private warningHandler?: WarningHandler;
 	private manualEmail?: string;
 	private runtimeActiveEmail?: string;
+	private sessionRotation?: SessionRotation;
+
 	private stateChangeHandlers = new Set<StateChangeHandler>();
 	private warnedAuthFailureEmails = new Set<string>();
 	private readyPromise: Promise<void> = Promise.resolve();
@@ -147,6 +150,12 @@ export class AccountManager {
 
 	setWarningHandler(handler?: WarningHandler): void {
 		this.warningHandler = handler;
+	}
+
+	setSessionRotation(rotation?: SessionRotation): void {
+		this.sessionRotation?.close();
+		this.sessionRotation = rotation;
+		this.runtimeActiveEmail = undefined;
 	}
 
 	resetSessionWarnings(): void {
@@ -362,6 +371,8 @@ export class AccountManager {
 	getActiveAccount(): Account | undefined {
 		const manual = this.getManualAccount();
 		if (manual) return manual;
+		const assigned = this.sessionRotation?.getAccount(this.getAccounts());
+		if (assigned) return assigned;
 		if (this.data.activeEmail) {
 			return this.getAccount(this.data.activeEmail);
 		}
@@ -604,11 +615,25 @@ export class AccountManager {
 		);
 	}
 
-	async activateBestAccount(options?: {
-		excludeEmails?: Set<string>;
-		signal?: AbortSignal;
-		refreshUsage?: boolean;
-	}): Promise<Account | undefined> {
+	async activateBestAccount(
+		options?: {
+			excludeEmails?: Set<string>;
+			signal?: AbortSignal;
+			refreshUsage?: boolean;
+		},
+		rotation = this.sessionRotation,
+	): Promise<Account | undefined> {
+		if (rotation) {
+			return rotation.select(() => {
+				const now = Date.now();
+				return this.getAccounts().filter(
+					(account) =>
+						isAccountAvailable(account, now) &&
+						!options?.excludeEmails?.has(account.email),
+				);
+			}, options?.signal);
+		}
+
 		const now = Date.now();
 		this.clearExpiredExhaustion(now);
 		const accounts = this.getAccounts();

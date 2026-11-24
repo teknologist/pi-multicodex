@@ -737,7 +737,8 @@ async function runRotationSubcommand(
 	ctx: ExtensionCommandContext,
 ): Promise<void> {
 	const lines = [
-		"Current policy: manual account first, then untouched accounts, then earliest weekly reset, then random fallback.",
+		"Manual account first. Otherwise, new sessions take turns among available accounts on their first Codex request.",
+		"Each session keeps its assigned account when resumed. An automatic fallback becomes the session's new assignment.",
 		"If token validation fails before a request starts, MultiCodex skips that account and retries another one.",
 		"If a request hits quota or rate limit before any output streams, MultiCodex marks the account on cooldown and retries.",
 		"If pi auth is active, it participates in rotation as an ephemeral account without being persisted.",

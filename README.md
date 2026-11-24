@@ -24,8 +24,10 @@ When you start a session, MultiCodex:
 
 1. Imports your existing pi Codex auth automatically (if present).
 2. Merges duplicate imported credentials into the managed pool so one account does not consume multiple rotation slots.
-3. Checks usage data across all managed accounts.
-4. Picks the best available account — untouched accounts first, then the one whose weekly reset window ends soonest, then a random available account as fallback.
+
+On the first automatic Codex request, a new session takes the next available account in round-robin order. Starting a session without using Codex does not advance the rotation. The rotation skips accounts on cooldown or that need re-authentication. It does not compare usage percentages or subscription plans.
+
+A session keeps its assigned account across turns and when you resume it. If MultiCodex automatically switches to another account, the session keeps the replacement even after the previous account recovers. Use `/new` to start a new session and take another turn in the rotation.
 
 If you pin a specific account from `/multicodex accounts` or `/multicodex use`, that account is used until it hits quota, fails auth validation, or you clear the override.
 
@@ -44,7 +46,7 @@ Everything lives under one command: `/multicodex`.
 | `/multicodex refresh [identifier\|all]` | Refresh token validity and usage data for one account or all accounts |
 | `/multicodex reauth [identifier]` | Re-authenticate one account explicitly |
 | `/multicodex footer` | Configure the usage footer display |
-| `/multicodex rotation` | Show the current rotation policy |
+| `/multicodex rotation` | Show the session rotation and failover policy |
 | `/multicodex verify` | Check storage, settings, auth import, and reauth health |
 | `/multicodex path` | Print storage and settings file locations |
 | `/multicodex reset [manual\|quota\|all]` | Clear manual override, quota cooldowns, or both |
@@ -98,9 +100,7 @@ These per-account widgets show managed MultiCodex accounts only, ignore the ephe
 
 ## Transport on Pi 1.1.0
 
-MultiCodex preserves your requested transport, including `auto` and explicit `sse`. Each attempt uses `cacheRetention: "none"` so it authenticates independently, even when two credentials share one workspace.
-
-This disables WebSocket connection reuse, cached-response continuation, and the explicit session prompt-cache key. It avoids forced SSE and does not require a host cleanup-registry bridge. Pi can still fall back to SSE when a WebSocket request fails before output.
+MultiCodex preserves your requested transport. With explicit `sse`, it keeps Pi's cache retention and scopes the cache key to the session and account. With `auto` or WebSocket, MultiCodex sets `cacheRetention: "none"` to avoid reusing a connection authenticated with a different account. Pi can still fall back to SSE when a WebSocket request fails before output.
 
 ## Local development
 
@@ -126,10 +126,11 @@ MultiCodex stores all data locally under `~/.pi/agent/`:
 | File | Contents |
 |---|---|
 | `codex-accounts.json` | Managed account credentials and state |
+| `codex-rotation` | Last account assigned by round robin in this Pi agent directory, stored as a hash |
 | `codex-usage-cache.json` | Shared, credential-free usage snapshots for all pi profiles |
 | `settings.json` (key `pi-multicodex`) | Footer display preferences |
 
-No data is sent anywhere except to the Codex API endpoints for auth refresh and usage queries.
+Pi session files contain the account hash needed to restore the assignment. MultiCodex does not add the hash or credentials to the model context.
 
 ## Release process
 

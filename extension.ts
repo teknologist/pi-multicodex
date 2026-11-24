@@ -6,8 +6,9 @@ import type {
 import { AccountManager } from "./account-manager";
 import { registerCommands } from "./commands";
 import { isStaleExtensionContextError } from "./context-utils";
-import { handleNewSessionSwitch, handleSessionStart } from "./hooks";
+import { handleSessionStart } from "./hooks";
 import { installMulticodexProviderWrapper } from "./provider";
+import { SessionRotation } from "./session-rotation";
 import { createUsageStatusController } from "./status";
 
 export default function multicodexExtension(pi: ExtensionAPI) {
@@ -39,19 +40,15 @@ export default function multicodexExtension(pi: ExtensionAPI) {
 
 	registerCommands(pi, accountManager, statusController);
 
-	pi.on("session_start", (event: SessionStartEvent, ctx: ExtensionContext) => {
+	pi.on("session_start", (_event: SessionStartEvent, ctx: ExtensionContext) => {
 		lastContext = ctx;
-		installMulticodexProviderWrapper(pi, accountManager);
+		const rotation = new SessionRotation(pi, ctx.sessionManager, (msg) =>
+			notifyWarning(ctx, msg),
+		);
+		accountManager.setSessionRotation(rotation);
+		installMulticodexProviderWrapper(pi, accountManager, rotation);
 		accountManager.resetSessionWarnings();
-		if (event.reason === "new") {
-			handleNewSessionSwitch(accountManager, (msg) =>
-				notifyWarning(lastContext, msg),
-			);
-		} else {
-			handleSessionStart(accountManager, (msg) =>
-				notifyWarning(lastContext, msg),
-			);
-		}
+		handleSessionStart(accountManager, (msg) => notifyWarning(ctx, msg));
 		statusController.startAutoRefresh();
 		void (async () => {
 			await statusController.loadPreferences(ctx);
@@ -74,6 +71,7 @@ export default function multicodexExtension(pi: ExtensionAPI) {
 		if (lastContext === ctx) {
 			lastContext = undefined;
 		}
+		accountManager.setSessionRotation(undefined);
 		accountManager.setWarningHandler(undefined);
 		statusController.dispose(ctx);
 	});

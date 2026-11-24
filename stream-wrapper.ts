@@ -10,6 +10,7 @@ import {
 } from "@earendil-works/pi-ai";
 import type { AccountManager } from "./account-manager";
 import { isQuotaErrorMessage } from "./quota";
+import type { SessionRotation } from "./session-rotation";
 import {
 	createErrorAssistantMessage,
 	createLinkedAbortController,
@@ -50,6 +51,7 @@ function isRetrySafePreOutputEvent(event: AssistantMessageEvent): boolean {
 export function createStreamWrapper(
 	accountManager: AccountManager,
 	baseProvider: ApiProviderRef,
+	rotation?: SessionRotation,
 ) {
 	return (
 		model: Model<Api>,
@@ -57,12 +59,18 @@ export function createStreamWrapper(
 		options?: SimpleStreamOptions,
 	): AssistantMessageEventStream => {
 		const stream = createAssistantMessageEventStream();
+		const signal = rotation
+			? options?.signal
+				? AbortSignal.any([options.signal, rotation.signal])
+				: rotation.signal
+			: options?.signal;
 
 		(async () => {
 			try {
 				await accountManager.waitUntilReady();
 				const excludedEmails = new Set<string>();
 				for (let attempt = 0; attempt <= MAX_ROTATION_RETRIES; attempt++) {
+					rotation?.signal.throwIfAborted();
 					const now = Date.now();
 					const manual = accountManager.getAvailableManualAccount({
 						excludeEmails: excludedEmails,
@@ -74,10 +82,13 @@ export function createStreamWrapper(
 						if (accountManager.hasManualAccount()) {
 							accountManager.clearManualAccount();
 						}
-						account = await accountManager.activateBestAccount({
-							excludeEmails: excludedEmails,
-							signal: options?.signal,
-						});
+						account = await accountManager.activateBestAccount(
+							{
+								excludeEmails: excludedEmails,
+								signal,
+							},
+							rotation,
+						);
 					}
 					if (!account) {
 						throw new Error(
@@ -99,8 +110,9 @@ export function createStreamWrapper(
 						}
 						throw error;
 					}
+					rotation?.signal.throwIfAborted();
 					accountManager.setRuntimeActiveAccount?.(account.email);
-					const abortController = createLinkedAbortController(options?.signal);
+					const abortController = createLinkedAbortController(signal);
 
 					const internalModel: Model<"openai-codex-responses"> = {
 						...(model as Model<"openai-codex-responses">),
@@ -149,7 +161,7 @@ export function createStreamWrapper(
 						try {
 							await accountManager.handleQuotaExceeded(account, {
 								quotaError,
-								signal: options?.signal,
+								signal,
 							});
 						} catch (error) {
 							if (!isQuotaErrorMessage(normalizeUnknownError(error))) {

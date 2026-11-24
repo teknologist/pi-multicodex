@@ -2,7 +2,7 @@ import type { AccountManager } from "./account-manager";
 
 type WarningHandler = (message: string) => void;
 
-async function refreshAndActivateBestAccount(
+async function loadAccounts(
 	accountManager: AccountManager,
 	warningHandler?: WarningHandler,
 ): Promise<void> {
@@ -31,12 +31,6 @@ async function refreshAndActivateBestAccount(
 		if (accountManager.hasManualAccount()) {
 			accountManager.clearManualAccount();
 		}
-		const selected = await accountManager.activateBestAccount({
-			refreshUsage: false,
-		});
-		if (selected) {
-			await accountManager.refreshUsageForAccount(selected);
-		}
 	} finally {
 		accountManager.markReady();
 	}
@@ -46,12 +40,5 @@ export function handleSessionStart(
 	accountManager: AccountManager,
 	warningHandler?: WarningHandler,
 ): void {
-	refreshAndActivateBestAccount(accountManager, warningHandler).catch(() => {});
-}
-
-export function handleNewSessionSwitch(
-	accountManager: AccountManager,
-	warningHandler?: WarningHandler,
-): void {
-	refreshAndActivateBestAccount(accountManager, warningHandler).catch(() => {});
+	loadAccounts(accountManager, warningHandler).catch(() => {});
 }

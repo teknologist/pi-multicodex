@@ -244,7 +244,7 @@ async function reclaimStaleLock(path: string): Promise<void> {
 	}
 }
 
-async function acquireLock(
+export async function acquireFileLock(
 	path: string,
 	signal?: AbortSignal,
 	timeoutMs = LOCK_WAIT_TIMEOUT_MS,
@@ -298,7 +298,7 @@ async function persistSnapshot(
 	entry: CacheEntry,
 	signal?: AbortSignal,
 ): Promise<void> {
-	const release = await acquireLock(lockPath(filePath, "write"), signal);
+	const release = await acquireFileLock(lockPath(filePath, "write"), signal);
 	if (!release) return;
 	let temporaryPath: string | undefined;
 	try {
@@ -357,7 +357,7 @@ export async function getOrFetchSharedUsage(
 		return cached.snapshot;
 	}
 
-	const release = await acquireLock(
+	const release = await acquireFileLock(
 		lockPath(filePath, key),
 		options.signal,
 		options.lockTimeoutMs,

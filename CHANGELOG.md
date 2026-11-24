@@ -1,3 +1,7 @@
+## Unreleased
+
+- Assign an account in round-robin order on each new Pi session's first automatic Codex request. Keep that account on resume and keep automatic fallbacks for the rest of the session.
+
 ## [2.3.1](https://github.com/victor-software-house/pi-multicodex/compare/v2.3.0...v2.3.1) (2026-03-30)
 
 

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
 	registerCommands: vi.fn(),
 	handleSessionStart: vi.fn(),
-	handleNewSessionSwitch: vi.fn(),
+	setSessionRotation: vi.fn(),
 	installMulticodexProviderWrapper: vi.fn(),
 	setWarningHandler: vi.fn(),
 	resetSessionWarnings: vi.fn(),
@@ -19,6 +19,7 @@ vi.mock("./account-manager", () => ({
 	AccountManager: class MockAccountManager {
 		setWarningHandler = mocks.setWarningHandler;
 		resetSessionWarnings = mocks.resetSessionWarnings;
+		setSessionRotation = mocks.setSessionRotation;
 	},
 }));
 
@@ -27,7 +28,6 @@ vi.mock("./commands", () => ({
 }));
 
 vi.mock("./hooks", () => ({
-	handleNewSessionSwitch: mocks.handleNewSessionSwitch,
 	handleSessionStart: mocks.handleSessionStart,
 }));
 
@@ -48,11 +48,13 @@ vi.mock("./status", () => ({
 
 import multicodexExtension from "./extension";
 
+const sessionManager = { getSessionId: () => "session", getEntries: () => [] };
+
 describe("multicodexExtension", () => {
 	beforeEach(() => {
 		mocks.registerCommands.mockClear();
 		mocks.handleSessionStart.mockClear();
-		mocks.handleNewSessionSwitch.mockClear();
+		mocks.setSessionRotation.mockClear();
 		mocks.installMulticodexProviderWrapper.mockClear();
 		mocks.setWarningHandler.mockClear();
 		mocks.resetSessionWarnings.mockClear();
@@ -93,7 +95,7 @@ describe("multicodexExtension", () => {
 
 	it("routes session and status events to the helpers", async () => {
 		const handlers = new Map<string, (...args: unknown[]) => void>();
-		const ctx = { ui: { notify: vi.fn() } };
+		const ctx = { ui: { notify: vi.fn() }, sessionManager };
 
 		multicodexExtension({
 			registerProvider: vi.fn(),
@@ -115,7 +117,6 @@ describe("multicodexExtension", () => {
 		expect(mocks.installMulticodexProviderWrapper).toHaveBeenCalledTimes(2);
 		expect(mocks.resetSessionWarnings).toHaveBeenCalledTimes(1);
 		expect(mocks.handleSessionStart).toHaveBeenCalledOnce();
-		expect(mocks.handleNewSessionSwitch).not.toHaveBeenCalled();
 		expect(mocks.statusStartAutoRefresh).toHaveBeenCalledOnce();
 		await vi.waitFor(() => {
 			expect(mocks.statusLoadPreferences).toHaveBeenCalledWith(ctx);
@@ -125,7 +126,7 @@ describe("multicodexExtension", () => {
 		sessionStart?.({ reason: "new" }, ctx as never);
 		expect(mocks.installMulticodexProviderWrapper).toHaveBeenCalledTimes(3);
 		expect(mocks.resetSessionWarnings).toHaveBeenCalledTimes(2);
-		expect(mocks.handleNewSessionSwitch).toHaveBeenCalledOnce();
+		expect(mocks.handleSessionStart).toHaveBeenCalledTimes(2);
 		expect(mocks.statusStartAutoRefresh).toHaveBeenCalledTimes(2);
 		await vi.waitFor(() => {
 			expect(mocks.statusRefreshFor).toHaveBeenCalledTimes(2);
@@ -148,6 +149,7 @@ describe("multicodexExtension", () => {
 			warningHandler = handler;
 		});
 		const staleCtx = {
+			sessionManager,
 			ui: {
 				notify: vi.fn(() => {
 					throw new Error(
@@ -175,6 +177,7 @@ describe("multicodexExtension", () => {
 			warningHandler = handler;
 		});
 		const staleCtx = {
+			sessionManager,
 			ui: {
 				notify: vi.fn(() => {
 					throw new Error(

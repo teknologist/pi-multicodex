@@ -14,6 +14,7 @@ import {
 	getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 import type { AccountManager } from "./account-manager";
+import type { SessionRotation } from "./session-rotation";
 import { createStreamWrapper } from "./stream-wrapper";
 
 export const PROVIDER_ID = "openai-codex";
@@ -371,6 +372,7 @@ function getDelegateProvider(): ApiProviderRef {
 export function buildMulticodexProviderConfig(
 	accountManager: AccountManager,
 	baseProvider: ApiProviderRef = getDelegateProvider(),
+	rotation?: SessionRotation,
 ) {
 	if (!baseProvider) {
 		throw new Error(
@@ -382,7 +384,7 @@ export function buildMulticodexProviderConfig(
 		// Leave models and endpoints to Pi; a model list replaces its live catalog.
 		apiKey: getActiveApiKey(accountManager),
 		api: CODEX_RESPONSES_API,
-		streamSimple: createStreamWrapper(accountManager, baseProvider),
+		streamSimple: createStreamWrapper(accountManager, baseProvider, rotation),
 	};
 
 	Object.defineProperty(config, MULTICODEX_PROVIDER_MARKER, {
@@ -395,11 +397,13 @@ export function buildMulticodexProviderConfig(
 export function installMulticodexProviderWrapper(
 	pi: ProviderRegistration,
 	accountManager: AccountManager,
+	rotation?: SessionRotation,
 ) {
 	const delegateProvider = getDelegateProvider();
 	const providerConfig = buildMulticodexProviderConfig(
 		accountManager,
 		delegateProvider,
+		rotation,
 	);
 	pi.registerProvider(PROVIDER_ID, providerConfig);
 	activeDelegateProvider = delegateProvider;

@@ -44,6 +44,7 @@
 		"provider.ts",
 		"quota.ts",
 		"selection.ts",
+		"session-rotation.ts",
 		"status.ts",
 		"storage.ts",
 		"stream-utils.ts",

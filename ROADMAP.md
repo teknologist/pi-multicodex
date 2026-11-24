@@ -28,7 +28,7 @@ The current shipped behavior is:
 - Footer settings are stored in `~/.pi/agent/settings.json` under `pi-multicodex`.
 - Managed account storage is stored in `~/.pi/agent/codex-accounts.json`.
 - The behavior contract (selection priority, retry policy, manual override, error classification) is documented in README.
-- Rotation criteria are still hard-coded but fully documented.
+- Automatic rotation assigns accounts in round-robin order per Pi session, preserves the assignment on resume, and keeps the fallback after an automatic switch.
 
 ## Operating principles
 
@@ -198,7 +198,7 @@ Goal: make account rotation behavior explicit, configurable, and inspectable.
 
 ### Behavior contract work
 
-- [x] Define account selection priority
+- [x] Define account selection priority and assign accounts per session
 - [x] Define quota exhaustion semantics
 - [x] Define which reset windows matter for selection
 - [x] Define retry policy
@@ -219,8 +219,7 @@ Goal: make account rotation behavior explicit, configurable, and inspectable.
 
 ### Candidate settings to support
 
-- [ ] prefer untouched accounts
-- [ ] prefer earliest weekly reset when multiple accounts are available
+- [ ] optional usage-based selection for users who want to balance quota
 - [ ] configurable fallback cooldown when reset time is unknown
 - [ ] configurable retry count for pre-stream quota rotation
 - [ ] explicit enable or disable toggles for selection heuristics that are currently implicit
